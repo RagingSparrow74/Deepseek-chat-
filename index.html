@@ -1,132 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>DeepSeek Uncensored</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepSeek Uncensored Chat</title>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0a0a0a;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #2b2b2b, #1a1a1a);
       color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
       padding: 20px;
-      max-width: 700px;
-      margin: auto;
     }
-    h2 {
-      color: #ff66cc;
+    h1 {
       text-align: center;
+      margin-bottom: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
     }
-    input, textarea, button {
-      width: 100%;
-      margin-top: 10px;
+    .config {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .config input {
+      flex: 1;
       padding: 10px;
-      background: #1a1a1a;
-      color: #fff;
+      background: #333;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #f0f0f0;
+    }
+    #chat {
+      flex: 1;
+      background: #1f1f1f;
       border: 1px solid #333;
-      border-radius: 5px;
-      font-size: 1rem;
+      border-radius: 8px;
+      padding: 15px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+    .message {
+      margin-bottom: 10px;
+      max-width: 75%;
+      padding: 10px 15px;
+      border-radius: 12px;
+      line-height: 1.4;
+      position: relative;
+    }
+    .message.user {
+      background: #ff4fa1;
+      align-self: flex-end;
+      border-bottom-right-radius: 0;
+    }
+    .message.bot {
+      background: #444;
+      align-self: flex-start;
+      border-bottom-left-radius: 0;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    textarea {
+      flex: 1;
+      resize: vertical;
+      min-height: 60px;
+      padding: 10px;
+      background: #333;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #f0f0f0;
     }
     button {
-      background: #ff3399;
-      font-weight: bold;
+      padding: 0 20px;
+      background: #ff4fa1;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
       cursor: pointer;
+      color: white;
+      transition: background .3s;
     }
-    #chatLog {
-      margin-top: 20px;
-      padding: 10px;
-      background: #111;
-      border-radius: 10px;
-      max-height: 400px;
-      overflow-y: auto;
-      white-space: pre-wrap;
+    button:hover { background: #e63d8f; }
+    .footer {
+      text-align: center;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      opacity: 0.7;
     }
-    .user { color: #66ccff; }
-    .ai { color: #ff99cc; }
-    .entry { margin-bottom: 1em; }
   </style>
 </head>
 <body>
-  <h2>DeepSeek Uncensored Chat</h2>
-
-  <input id="endpoint" placeholder="API Endpoint" />
-  <input id="apiKey" placeholder="API Key" type="password" />
-  <input id="model" placeholder="Model (e.g. deepseek-uncensored)" />
-  <textarea id="userInput" rows="3" placeholder="Say something naughty..."></textarea>
-  <button onclick="sendMessage()">Send</button>
-  <button onclick="clearMemory()" style="background:#444; margin-top:5px;">Clear Memory</button>
-
-  <div id="chatLog"></div>
+  <h1>DeepSeek Uncensored Chat</h1>
+  <div class="config">
+    <input type="text" id="endpoint" placeholder="API Endpoint">
+    <input type="password" id="apiKey" placeholder="API Key">
+    <input type="text" id="model" placeholder="Model name">
+  </div>
+  <div id="chat"></div>
+  <div class="controls">
+    <textarea id="userInput" placeholder="Type your message..."></textarea>
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="clearHistory()" style="background:#555;">Clear</button>
+  </div>
+  <div class="footer">Powered by Chutes AI • DeepSeek Uncensored</div>
 
   <script>
-    // Load from localStorage
-    window.onload = () => {
-      document.getElementById('endpoint').value = localStorage.getItem('endpoint') || '';
-      document.getElementById('apiKey').value = localStorage.getItem('apiKey') || '';
-      document.getElementById('model').value = localStorage.getItem('model') || '';
-      let chat = localStorage.getItem('chatLog');
-      if (chat) {
-        chatLog.innerHTML = chat;
+    const chatEl = document.getElementById('chat');
+    let chatHistory = [];
+
+    // Load saved config and history
+    window.addEventListener('load', () => {
+      const savedEndpoint = localStorage.getItem('ds_endpoint');
+      const savedKey = localStorage.getItem('ds_apiKey');
+      const savedModel = localStorage.getItem('ds_model');
+      const savedHistory = localStorage.getItem('ds_history');
+      if (savedEndpoint) document.getElementById('endpoint').value = savedEndpoint;
+      if (savedKey) document.getElementById('apiKey').value = savedKey;
+      if (savedModel) document.getElementById('model').value = savedModel;
+      if (savedHistory) {
+        chatHistory = JSON.parse(savedHistory);
+        renderChat();
       }
-    };
+    });
+
+    function saveConfig() {
+      localStorage.setItem('ds_endpoint', document.getElementById('endpoint').value);
+      localStorage.setItem('ds_apiKey', document.getElementById('apiKey').value);
+      localStorage.setItem('ds_model', document.getElementById('model').value);
+    }
+
+    function renderChat() {
+      chatEl.innerHTML = '';
+      chatHistory.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'message ' + msg.role;
+        div.textContent = msg.content;
+        chatEl.appendChild(div);
+      });
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
 
     async function sendMessage() {
       const endpoint = document.getElementById('endpoint').value;
-      const apiKey = document.getElementById('apiKey').value;
+      const key = document.getElementById('apiKey').value;
       const model = document.getElementById('model').value;
-      const userInput = document.getElementById('userInput').value;
-      const chatLog = document.getElementById('chatLog');
+      const input = document.getElementById('userInput').value.trim();
+      if (!endpoint || !key || !model || !input) return;
 
-      if (!userInput.trim()) return;
+      // Save config
+      saveConfig();
 
-      // Save inputs
-      localStorage.setItem('endpoint', endpoint);
-      localStorage.setItem('apiKey', apiKey);
-      localStorage.setItem('model', model);
-
-      // Show user message
-      const userMsg = `<div class="entry user"><strong>You:</strong> ${userInput}</div>`;
-      chatLog.innerHTML += userMsg;
-      chatLog.scrollTop = chatLog.scrollHeight;
-
-      // Create message array for API
-      const messages = [
-        { role: "user", content: userInput }
-      ];
+      // Add user message
+      chatHistory.push({ role: 'user', content: input });
+      renderChat();
+      document.getElementById('userInput').value = '';
 
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${key}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            model: model,
-            messages: messages,
-            temperature: 0.95
-          })
+          body: JSON.stringify({ model, messages: chatHistory, temperature: 0.9 })
         });
-
         const data = await res.json();
-        const aiText = data.choices?.[0]?.message?.content?.trim() || "No response~";
-        const aiMsg = `<div class="entry ai"><strong>AI:</strong> ${aiText}</div>`;
-        chatLog.innerHTML += aiMsg;
-        chatLog.scrollTop = chatLog.scrollHeight;
-
-        // Save to memory
-        localStorage.setItem('chatLog', chatLog.innerHTML);
-
-        document.getElementById('userInput').value = "";
+        const content = data.choices?.[0]?.message?.content || 'No response, check your details.';
+        chatHistory.push({ role: 'bot', content });
       } catch (err) {
-        chatLog.innerHTML += `<div class="entry ai"><strong>AI:</strong> Error... API might be down or your key’s bad, babe.</div>`;
-        chatLog.scrollTop = chatLog.scrollHeight;
+        chatHistory.push({ role: 'bot', content: 'Error: could not reach API.' });
+        console.error(err);
       }
+
+      // Save history and re-render
+      localStorage.setItem('ds_history', JSON.stringify(chatHistory));
+      renderChat();
     }
 
-    function clearMemory() {
-      localStorage.removeItem('chatLog');
-      document.getElementById('chatLog').innerHTML = '';
+    function clearHistory() {
+      if (!confirm('Clear all chat history?')) return;
+      chatHistory = [];
+      localStorage.removeItem('ds_history');
+      renderChat();
     }
   </script>
 </body>
-</html>
+  </html>
+  
