@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DeepSeek Uncensored</title>
+  <style>
+    body { font-family: Arial; background: #1e1e1e; color: #f0f0f0; padding: 20px; }
+    textarea, input { width: 100%; margin: 10px 0; padding: 10px; border-radius: 6px; }
+    button { padding: 10px 20px; background: #ff0066; color: white; border: none; border-radius: 6px; }
+    .response { white-space: pre-wrap; background: #2c2c2c; padding: 10px; border-radius: 6px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>DeepSeek Uncensored Chat</h2>
+  <input type="password" id="apiKey" placeholder="Enter your Chutes AI API key" />
+  <textarea id="userInput" placeholder="Type your dirty lil thoughts..."></textarea>
+  <button onclick="sendMessage()">Send</button>
+  <div class="response" id="responseBox"></div>
+
+  <script>
+    async function sendMessage() {
+      const key = document.getElementById('apiKey').value;
+      const input = document.getElementById('userInput').value;
+      const responseBox = document.getElementById('responseBox');
+      responseBox.innerText = "Waiting for daddy AI...";
+
+      try {
+        const res = await fetch('https://api.chutes.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'deepseek-uncensored',
+            messages: [{ role: 'user', content: input }],
+            temperature: 0.9
+          })
+        });
+
+        const data = await res.json();
+        responseBox.innerText = data.choices?.[0]?.message?.content || "No response... did you break it?"
+      } catch (err) {
+        responseBox.innerText = "Oopsie~ something went wrong!";
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
