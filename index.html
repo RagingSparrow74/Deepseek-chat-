@@ -1,76 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>DeepSeek Chat</title>
+  <meta charset="UTF-8" />
+  <title>DeepSeek Uncensored</title>
   <style>
-    body { font-family: sans-serif; background: #111; color: #eee; padding: 20px; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+    }
+    h2 {
+      color: #ff66cc;
+      text-align: center;
+    }
     input, textarea, button {
-      display: block;
       width: 100%;
-      margin: 10px 0;
+      margin-top: 10px;
       padding: 10px;
-      background: #222;
-      color: #eee;
-      border: 1px solid #444;
+      background: #1a1a1a;
+      color: #fff;
+      border: 1px solid #333;
       border-radius: 5px;
+      font-size: 1rem;
     }
     button {
       background: #ff3399;
-      color: white;
       font-weight: bold;
       cursor: pointer;
     }
-    .response {
-      background: #1e1e1e;
-      padding: 15px;
-      border-radius: 5px;
+    #chatLog {
       margin-top: 20px;
+      padding: 10px;
+      background: #111;
+      border-radius: 10px;
+      max-height: 400px;
+      overflow-y: auto;
       white-space: pre-wrap;
     }
+    .user { color: #66ccff; }
+    .ai { color: #ff99cc; }
+    .entry { margin-bottom: 1em; }
   </style>
 </head>
 <body>
   <h2>DeepSeek Uncensored Chat</h2>
 
-  <input type="text" id="endpoint" placeholder="API Endpoint (e.g. https://api.chutes.ai/...)">
-  <input type="password" id="apiKey" placeholder="API Key">
-  <input type="text" id="model" placeholder="Model name (e.g. deepseek-uncensored)">
-  <textarea id="userInput" rows="4" placeholder="Talk dirty to the AI..."></textarea>
+  <input id="endpoint" placeholder="API Endpoint" />
+  <input id="apiKey" placeholder="API Key" type="password" />
+  <input id="model" placeholder="Model (e.g. deepseek-uncensored)" />
+  <textarea id="userInput" rows="3" placeholder="Say something naughty..."></textarea>
   <button onclick="sendMessage()">Send</button>
+  <button onclick="clearMemory()" style="background:#444; margin-top:5px;">Clear Memory</button>
 
-  <div class="response" id="responseBox">Response will appear here~</div>
+  <div id="chatLog"></div>
 
   <script>
+    // Load from localStorage
+    window.onload = () => {
+      document.getElementById('endpoint').value = localStorage.getItem('endpoint') || '';
+      document.getElementById('apiKey').value = localStorage.getItem('apiKey') || '';
+      document.getElementById('model').value = localStorage.getItem('model') || '';
+      let chat = localStorage.getItem('chatLog');
+      if (chat) {
+        chatLog.innerHTML = chat;
+      }
+    };
+
     async function sendMessage() {
       const endpoint = document.getElementById('endpoint').value;
-      const key = document.getElementById('apiKey').value;
+      const apiKey = document.getElementById('apiKey').value;
       const model = document.getElementById('model').value;
-      const input = document.getElementById('userInput').value;
-      const responseBox = document.getElementById('responseBox');
+      const userInput = document.getElementById('userInput').value;
+      const chatLog = document.getElementById('chatLog');
 
-      responseBox.innerText = "Hmm~ thinking...";
+      if (!userInput.trim()) return;
+
+      // Save inputs
+      localStorage.setItem('endpoint', endpoint);
+      localStorage.setItem('apiKey', apiKey);
+      localStorage.setItem('model', model);
+
+      // Show user message
+      const userMsg = `<div class="entry user"><strong>You:</strong> ${userInput}</div>`;
+      chatLog.innerHTML += userMsg;
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      // Create message array for API
+      const messages = [
+        { role: "user", content: userInput }
+      ];
 
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${key}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             model: model,
-            messages: [{ role: 'user', content: input }],
-            temperature: 0.9
+            messages: messages,
+            temperature: 0.95
           })
         });
 
         const data = await res.json();
-        responseBox.innerText = data.choices?.[0]?.message?.content || "No response, baby~ check your API deets."
+        const aiText = data.choices?.[0]?.message?.content?.trim() || "No response~";
+        const aiMsg = `<div class="entry ai"><strong>AI:</strong> ${aiText}</div>`;
+        chatLog.innerHTML += aiMsg;
+        chatLog.scrollTop = chatLog.scrollHeight;
+
+        // Save to memory
+        localStorage.setItem('chatLog', chatLog.innerHTML);
+
+        document.getElementById('userInput').value = "";
       } catch (err) {
-        responseBox.innerText = "Ugh~ something broke. Maybe the API got shy.";
-        console.error(err);
+        chatLog.innerHTML += `<div class="entry ai"><strong>AI:</strong> Error... API might be down or your key’s bad, babe.</div>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
       }
+    }
+
+    function clearMemory() {
+      localStorage.removeItem('chatLog');
+      document.getElementById('chatLog').innerHTML = '';
     }
   </script>
 </body>
